@@ -1,0 +1,413 @@
+﻿{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "adVmName": {
+      "type": "string",
+      "metadata": {
+        "description": "The VM name for the Active Directory Domain Controller."
+      }
+    },
+    "adVmSize": {
+      "type": "string",
+      "allowedValues": [
+        "Standard_A2_v2",
+        "Standard_A4_v2",
+        "Standard_D2",
+        "Standard_D3"
+      ],
+      "metadata": {
+        "description": "The size of the Active Directory server"
+      },
+      "defaultValue": "Standard_A4_v2"
+    },
+    "domainName": {
+      "type": "string",
+      "metadata": {
+        "description": "The FQDN of the Active Directory Domain to be created."
+      }
+    },
+    "domainUsername": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the domain administrator account."
+      }
+    },
+    "domainPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "The password for domain administrator account."
+      }
+    },
+    "rdsVmName": {
+      "type": "string",
+      "metadata": {
+        "description": "The VM name for the Remote Desktop Services server."
+      }
+    },
+    "rdsDnsPrefix": {
+      "type": "string",
+      "metadata": {
+        "description": "The DNS prefix for the public IP address used by the Load Balancer for RDS server."
+      }
+    },
+    "rdsVmSize": {
+      "type": "string",
+      "allowedValues": [
+        "Standard_DS1_v2",
+        "Standard_DS2_v2",
+        "Standard_DS3_v2",
+        "Standard_DS4_v2",
+        "Standard_DS5_v2"
+      ],
+      "metadata": {
+        "description": "The size of the Remote Desktop Services server"
+      },
+      "defaultValue": "Standard_DS3"
+    },
+    "appVmName": {
+      "type": "string",
+      "metadata": {
+        "description": "The VM name for the Application server."
+      }
+    },
+    "appDnsPrefix": {
+      "type": "string",
+      "metadata": {
+        "description": "The DNS prefix for the public IP address used by Application server."
+      }
+    },
+    "appVmSize": {
+      "type": "string",
+      "allowedValues": [
+        "Standard_A2_v2",
+        "Standard_A4_v2",
+        "Standard_D2_v2",
+        "Standard_D3_v2"
+      ],
+      "metadata": {
+        "description": "The size of the application server"
+      },
+      "defaultValue": "Standard_A4_v2"
+    },
+    "localAdminUsername": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the local administrator account on Remote Desktop Services server and application servers."
+      }
+    },
+    "localAdminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "The password for the local administrator account on Remote Desktop Services server and application servers."
+      }
+    },
+    "_artifactsLocation": {
+      "type": "string",
+      "metadata": {
+        "description": "The location of resources, such as templates and DSC modules, that the template depends on"
+      },
+      "defaultValue": ""
+    },
+    "_artifactsLocationSasToken": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Auto-generated token to access _artifactsLocation"
+      },
+      "defaultValue": ""
+    }
+  },
+  "variables": {
+    "apiVersion": {
+      "resources": { "deployments": "2016-02-01" }
+    },
+    "virtualNetworkName": "vnet01",
+    "_comment1": "The name of the Virtual network",
+    "virtualNetworkResourceGroup": "[resourceGroup().name]",
+    "_comment2": "The name resource group name of the virtual network",
+    "virtualNetworkAddressRange": "10.0.0.0/16",
+    "_comment3": "Address range for the virtual network",
+    "subnetName": "Subnet01",
+    "_comment4": "The name of the subnet where the domain controller and the application server will be located",
+    "subnetAddressPrefix": "10.0.0.0/24",
+    "_comment5": "The address range for the first subnet",
+    "subnet2Name": "Subnet02",
+    "_comment6": "The name of the second subnet where RDS server will be located",
+    "subnet2AddressPrefix": "10.0.254.0/24",
+    "_comment7": "The address range for the second subnet",
+    "adNicIPAddress": [ "10.0.0.4" ],
+    "_comment8": "The IP addresses for the DNS servers and the IP address of the domain controller",
+    "adWindowsServer": [
+      "2012-Datacenter",
+      "2012-R2-Datacenter",
+      "2016-Datacenter"
+    ],
+    "_comment9": "The OS for the domain controller",
+    "rdsWindowsServer": [
+      "2012-Datacenter",
+      "2012-R2-Datacenter",
+      "2016-Datacenter"
+    ],
+    "_comment11": "The OS for the Remote Desktop Services server",
+    "appWindowsServer": [
+      "2012-Datacenter",
+      "2012-R2-Datacenter",
+      "2016-Datacenter"
+    ],
+    "_comment13": "The OS for the application server",
+    "domainJoinOptions": 3,
+    "_comment15": "Set of bit flags that define the join options. Default value of 3 is a combination of NETSETUP_JOIN_DOMAIN (0x00000001) & NETSETUP_ACCT_CREATE (0x00000002) i.e. will join the domain and create the account on the domain. For more information see https://msdn.microsoft.com/en-us/library/aa392154(v=vs.85).aspx"
+  },
+    "resources": [
+      {
+        "name": "VNet",
+        "type": "Microsoft.Resources/deployments",
+        "apiVersion": "[variables('apiVersion').resources.deployments]",
+        "dependsOn": [
+        ],
+        "properties": {
+          "mode": "Incremental",
+          "templateLink": {
+            "uri": "[concat(parameters('_artifactsLocation'), '/networking.json', parameters('_artifactsLocationSasToken'))]",
+            "contentVersion": "1.0.0.0"
+          },
+          "parameters": {
+            "virtualNetworkName": {
+              "value": "[variables('virtualNetworkName')]"
+            },
+            "virtualNetworkAddressRange": {
+              "value": "[variables('virtualNetworkAddressRange')]"
+            },
+            "subnetName": {
+              "value": "[variables('subnetName')]"
+            },
+            "subnetAddressPrefix": {
+              "value": "[variables('subnetAddressPrefix')]"
+            },
+            "subnet2Name": {
+              "value": "[variables('subnet2Name')]"
+            },
+            "subnet2AddressPrefix": {
+              "value": "[variables('subnet2AddressPrefix')]"
+            }
+          }
+        }
+      },
+      {
+        "name": "domaincontroller",
+        "type": "Microsoft.Resources/deployments",
+        "apiVersion": "[variables('apiVersion').resources.deployments]",
+        "dependsOn": [
+          "[concat('Microsoft.Resources/deployments/', 'VNet')]"
+        ],
+        "properties": {
+          "mode": "Incremental",
+          "templateLink": {
+            "uri": "[concat(parameters('_artifactsLocation'), '/domaincontroller.json', parameters('_artifactsLocationSasToken'))]",
+            "contentVersion": "1.0.0.0"
+          },
+          "parameters": {
+            "vmName": {
+              "value": "[parameters('adVmName')]"
+            },
+            "adminUsername": {
+              "value": "[parameters('domainUsername')]"
+            },
+            "adminPassword": {
+              "value": "[parameters('domainPassword')]"
+            },
+            "virtualNetworkResourceGroup": {
+              "value": "[variables('virtualNetworkResourceGroup')]"
+            },
+            "virtualNetworkName": {
+              "value": "[variables('virtualNetworkName')]"
+            },
+            "subnetName": {
+              "value": "[variables('SubnetName')]"
+            },
+            "adNicIPAddress": {
+              "value": "[variables('adNicIPAddress')[0]]"
+            },
+            "domainName": {
+              "value": "[parameters('domainName')]"
+            },
+            "windowsserver": {
+              "value": "[variables('adWindowsServer')[2]]"
+            },
+            "vmSize": {
+              "value": "[parameters('adVmSize')]"
+            },
+            "_artifactsLocation": {
+              "value": "[parameters('_artifactsLocation')]"
+            },
+            "_artifactsLocationSasToken": {
+              "value": "[parameters('_artifactsLocationSasToken')]"
+            }
+          }
+        }
+      },
+      {
+        "name": "UpdateVNet",
+        "type": "Microsoft.Resources/deployments",
+        "apiVersion": "[variables('apiVersion').resources.deployments]",
+        "dependsOn": [
+          "[concat('Microsoft.Resources/deployments/', 'VNet')]",
+          "[concat('Microsoft.Resources/deployments/', 'domaincontroller')]"
+        ],
+        "properties": {
+          "mode": "Incremental",
+          "templateLink": {
+            "uri": "[concat(parameters('_artifactsLocation'), '/updatenetwork.json', parameters('_artifactsLocationSasToken'))]",
+            "contentVersion": "1.0.0.0"
+          },
+          "parameters": {
+            "virtualNetworkName": {
+              "value": "[variables('virtualNetworkName')]"
+            },
+            "virtualNetworkAddressRange": {
+              "value": "[variables('virtualNetworkAddressRange')]"
+            },
+            "subnetName": {
+              "value": "[variables('subnetName')]"
+            },
+            "subnetAddressPrefix": {
+              "value": "[variables('subnetAddressPrefix')]"
+            },
+            "subnet2Name": {
+              "value": "[variables('subnet2Name')]"
+            },
+            "subnet2AddressPrefix": {
+              "value": "[variables('subnet2AddressPrefix')]"
+            },
+            "adNicIPAddress": {
+              "value": "[variables('adNicIPAddress')]"
+            }
+          }
+        }
+      },
+      {
+        "name": "RDS",
+        "type": "Microsoft.Resources/deployments",
+        "apiVersion": "[variables('apiVersion').resources.deployments]",
+        "dependsOn": [
+          "[concat('Microsoft.Resources/deployments/', 'VNet')]",
+          "[concat('Microsoft.Resources/deployments/', 'domaincontroller')]",
+          "[concat('Microsoft.Resources/deployments/', 'UpdateVNet')]"
+        ],
+        "properties": {
+          "mode": "Incremental",
+          "templateLink": {
+            "uri": "[concat(parameters('_artifactsLocation'), '/rds.json', parameters('_artifactsLocationSasToken'))]",
+            "contentVersion": "1.0.0.0"
+          },
+          "parameters": {
+            "vmName": {
+              "value": "[parameters('rdsVmName')]"
+            },
+            "adminUsername": {
+              "value": "[parameters('localAdminUsername')]"
+            },
+            "adminPassword": {
+              "value": "[parameters('localAdminPassword')]"
+            },
+            "domainUsername": {
+              "value": "[parameters('domainUsername')]"
+            },
+            "domainPassword": {
+              "value": "[parameters('domainPassword')]"
+            },
+            "virtualNetworkResourceGroup": {
+              "value": "[variables('virtualNetworkResourceGroup')]"
+            },
+            "domainJoinOptions": {
+              "value": "[variables('domainJoinOptions')]"
+            },
+            "virtualNetworkName": {
+              "value": "[variables('virtualNetworkName')]"
+            },
+            "subnetName": {
+              "value": "[variables('subnetName')]"
+            },
+            "domainName": {
+              "value": "[parameters('domainName')]"
+            },
+            "dnsPrefix": {
+              "value": "[parameters('rdsDnsPrefix')]"
+            },
+            "windowsServer": {
+              "value": "[variables('rdsWindowsServer')[2]]"
+            },
+            "vmSize": {
+              "value": "[parameters('rdsVmSize')]"
+            },
+            "_artifactsLocation": {
+              "value": "[parameters('_artifactsLocation')]"
+            },
+            "_artifactsLocationSasToken": {
+              "value": "[parameters('_artifactsLocationSasToken')]"
+            }
+          }
+        }
+      },
+      {
+        "name": "AppServer",
+        "type": "Microsoft.Resources/deployments",
+        "apiVersion": "[variables('apiVersion').resources.deployments]",
+        "dependsOn": [
+          "[concat('Microsoft.Resources/deployments/', 'VNet')]",
+          "[concat('Microsoft.Resources/deployments/', 'domaincontroller')]",
+          "[concat('Microsoft.Resources/deployments/', 'UpdateVNet')]"
+        ],
+        "properties": {
+          "mode": "Incremental",
+          "templateLink": {
+            "uri": "[concat(parameters('_artifactsLocation'), '/app.json', parameters('_artifactsLocationSasToken'))]",
+            "contentVersion": "1.0.0.0"
+          },
+          "parameters": {
+            "vmName": {
+              "value": "[parameters('appVmName')]"
+            },
+            "adminUsername": {
+              "value": "[parameters('localAdminUsername')]"
+            },
+            "adminPassword": {
+              "value": "[parameters('localAdminPassword')]"
+            },
+            "domainUsername": {
+              "value": "[parameters('domainUsername')]"
+            },
+            "domainPassword": {
+              "value": "[parameters('domainPassword')]"
+            },
+            "virtualNetworkResourceGroup": {
+              "value": "[variables('virtualNetworkResourceGroup')]"
+            },
+            "domainJoinOptions": {
+              "value": "[variables('domainJoinOptions')]"
+            },
+            "virtualNetworkName": {
+              "value": "[variables('virtualNetworkName')]"
+            },
+            "subnetName": {
+              "value": "[variables('subnetName')]"
+            },
+            "domainName": {
+              "value": "[parameters('domainName')]"
+            },
+            "appDnsPrefix": {
+              "value": "[parameters('appDnsPrefix')]"
+            },
+            "windowsServer": {
+              "value": "[variables('appWindowsServer')[2]]"
+            },
+            "vmSize": {
+              "value": "[parameters('appVmSize')]"
+            }
+          }
+        }
+      }
+    ],
+    "outputs": {
+    }
+  }

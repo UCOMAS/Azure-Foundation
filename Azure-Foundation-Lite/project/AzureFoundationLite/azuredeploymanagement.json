@@ -1,0 +1,564 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "omsRecoveryServicesVaultName": {
+      "type": "string",
+      "defaultValue": "OMSRSVault",
+      "metadata": {
+        "description": "The name of the OMS Recovery Services Vault that will be created."
+      }
+    },
+    "omsRecoveryServicesVaultLocation": {
+      "type": "string",
+      "allowedValues": [
+        "Brazil South",
+        "Central US",
+        "East Asia",
+        "East US",
+        "East US 2",
+        "Japan West",
+        "Japan East",
+        "North Central US",
+        "North Europe",
+        "South Central US",
+        "Southeast Asia",
+        "West Europe",
+        "West US"
+      ],
+      "metadata": {
+        "description": "The region to deploy OMS Recovery Services Vault in."
+      },
+      "defaultValue": "West Europe"
+    },
+    "omsRecoveryServicesVaultBackupStorageRedundancy": {
+      "type": "string",
+      "defaultValue": "LocallyRedundant",
+      "allowedValues": [
+        "GeoRedundant",
+        "LocallyRedundant"
+      ],
+      "metadata": {
+        "description": "Choose between GeoRedundant and LocallyRedundant for the Backup Vault storage type. A runbook job will be triggered to set the storage type."
+      }
+    },
+    "omsAutomationAccountName": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the OMS Automation account to create and deploy to."
+      }
+    },
+    "omsAutomationAccountLocation": {
+      "type": "string",
+      "defaultValue": "West Europe",
+      "allowedValues": [
+        "Japan East",
+        "East US 2",
+        "West Europe",
+        "Southeast Asia",
+        "South Central US"
+      ],
+      "metadata": {
+        "description": "The region to deploy the OMS Automation account in."
+      }
+    },
+    "omsAutomationSku": {
+      "type": "string",
+      "defaultValue": "Basic",
+      "allowedValues": [
+        "Free",
+        "Basic"
+      ],
+      "metadata": {
+        "description": "The SKU for OMS Automation account."
+      }
+    },
+    "runbookJobIdSetRecoveryVaultStorage": {
+      "type": "string",
+      "metadata": {
+        "description": "Valid and unique GUID to execute job for runbook Set-RecoveryServicesVaultBackupStorageRedundancy."
+      }
+    },
+    "backupScheduleRunTime": {
+      "type": "string",
+      "defaultValue": "18:30",
+      "metadata": {
+        "Description": "Daily backup runtime in UTC format. Example '18:30'."
+      }
+    },
+    "dailyRetentionDurationCount": {
+      "type": "int",
+      "defaultValue": 180,
+      "metadata": {
+        "description": "Number of days you want to retain the backup"
+      }
+    },
+    "azureServiceAccountUserName": {
+      "type": "string",
+      "metadata": {
+        "description": "The username for service account in Azure. The account will be used in Azure Automation to perform tasks on Azure Resources."
+      }
+    },
+    "azureServiceAccountPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "The password for service account in Azure. The account will be used in Azure Automation to perform tasks on Azure Resources."
+      }
+    },
+    "adVmName": {
+      "type": "string",
+      "metadata": {
+        "description": "The VM name of the domain controller."
+      }
+    },
+    "adVmResourceGroupName": {
+      "type": "string",
+      "metadata": {
+        "description": "The resource group of the domain controller."
+      }
+    },
+    "rdsVmName": {
+      "type": "string",
+      "metadata": {
+        "description": "The VM name of the rds server."
+      }
+    },
+    "rdsVmResourceGroupName": {
+      "type": "string",
+      "metadata": {
+        "description": "The resource group of the rds server."
+      }
+    },
+    "appVmName": {
+      "type": "string",
+      "metadata": {
+        "description": "The VM name of the application server."
+      }
+    },
+    "appVmResourceGroupName": {
+      "type": "string",
+      "metadata": {
+        "description": "The resource group of the application server."
+      }
+    },
+    "_artifactsLocation": {
+      "type": "string",
+      "metadata": {
+        "description": "The location of resources, such as templates and DSC modules, that the template depends on"
+      },
+      "defaultValue": ""
+    },
+    "_artifactsLocationSasToken": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Auto-generated token to access _artifactsLocation"
+      },
+      "defaultValue": ""
+    }
+  },
+  "variables": {
+    "omsAutomationApiVersion": "2015-01-01-preview",
+    "omsRecoveryServicesApiVersion": "2016-12-01",
+    "runbooks": [
+      {
+        "runbookName": "Set-RecoveryServicesVaultBackupStorageRedundancy",
+        "runbookURL": "[concat(parameters('_artifactsLocation'), '/Set-RecoveryServicesVaultBackupStorageRedundancy.ps1', parameters('_artifactsLocationSasToken'))]",
+        "runbookVersion": "1.0.0.1",
+        "runbookDescription": "Sets the storage redundancy of Recovery Services Backup Vault.",
+        "runbookType": "PowerShell"
+      }
+    ],
+    "automationCredentials": [
+      {
+        "Name": "AzureCredentials",
+        "Description": "Administrator Credentials for Azure Subscription(s)."
+      }
+    ],
+    "automationVariables": [
+      {
+        "Name": "AzureSubscriptionID",
+        "Description": "Azure Subscription ID.",
+        "isEncrypted": 0,
+        "Type": "string"
+      },
+      {
+        "Name": "AzureTenantID",
+        "Description": "Azure Tenant ID.",
+        "isEncrypted": 0,
+        "type": "string"
+      }
+    ],
+    "powerShellModulesBatch1": [
+      {
+        "Name": "AzureRM.Profile",
+        "Uri": "https://devopsgallerystorage.blob.core.windows.net/packages/azurerm.profile.2.5.0.nupkg"
+      }
+    ],
+    "powerShellModulesBatch2": [
+      {
+        "Name": "Azure.Storage",
+        "Uri": "https://devopsgallerystorage.blob.core.windows.net/packages/azure.storage.2.5.0.nupkg"
+      },
+      {
+        "Name": "AzureRM.Automation",
+        "Uri": "https://devopsgallerystorage.blob.core.windows.net/packages/azurerm.automation.2.5.0.nupkg"
+      },
+      {
+        "Name": "AzureRM.Resources",
+        "Uri": "https://devopsgallerystorage.blob.core.windows.net/packages/azurerm.resources.3.5.0.nupkg"
+      },
+      {
+        "Name": "AzureRM.Compute",
+        "Uri": "https://devopsgallerystorage.blob.core.windows.net/packages/azurerm.compute.2.5.0.nupkg"
+      }
+    ],
+    "powerShellModulesBatch3": [
+      {
+        "Name": "AzureRM.Storage",
+        "Uri": "https://devopsgallerystorage.blob.core.windows.net/packages/azurerm.storage.2.5.0.nupkg"
+      },
+      {
+        "Name": "AzureRM.RecoveryServices",
+        "Uri": "https://devopsgallerystorage.blob.core.windows.net/packages/azurerm.recoveryservices.2.5.0.nupkg"
+      },
+      {
+        "Name": "AzureRM.SiteRecovery",
+        "Uri": "https://devopsgallerystorage.blob.core.windows.net/packages/azurerm.siterecovery.3.4.0.nupkg"
+      },
+      {
+        "Name": "AzureRM.RecoveryServices.Backup",
+        "Uri": "https://devopsgallerystorage.blob.core.windows.net/packages/azurerm.recoveryservices.backup.2.5.0.nupkg"
+      }
+    ],
+    "powerShellModulesBatch4": [
+      {
+        "Name": "AzureRM.SQL",
+        "Uri": "https://devopsgallerystorage.blob.core.windows.net/packages/azurerm.sql.2.5.0.nupkg"
+      }
+    ],
+    "runbookJobs": [
+      {
+        "Id": "[parameters('runbookJobIdSetRecoveryVaultStorage')]",
+        "runbookName": "Set-RecoveryServicesVaultBackupStorageRedundancy",
+        "Parameters": {
+          "RecoveryServicesVaultName": "[parameters('omsRecoveryServicesVaultName')]",
+          "BackupStorageRedundancy": "[parameters('omsRecoveryServicesVaultBackupStorageRedundancy')]"
+        }
+      }
+    ],
+    "backupPolicy": [
+      {
+        "name": "[concat('AzureVMsDaily', replace(parameters('backupScheduleRunTime'),':','-'), 'UTC-Retention', parameters('dailyRetentionDurationCount'))]",
+        "properties": {
+          "backupManagementType": "AzureIaasVM",
+          "schedulePolicy": {
+              "schedulePolicyType": "SimpleSchedulePolicy",
+              "scheduleRunFrequency": "Daily",
+              "scheduleRunDays": null,
+              "scheduleRunTimes": [
+                "[concat('2017-03-07T', parameters('backupScheduleRunTime'), ':00.000Z')]"
+              ]
+          },
+          "retentionPolicy": {
+            "retentionPolicyType": "LongTermRetentionPolicy",
+            "dailySchedule": {
+              "retentionTimes": [
+                "[concat('2017-03-07T', parameters('backupScheduleRunTime'), ':00.000Z')]"
+              ],
+              "retentionDuration": {
+                "count": "[parameters('dailyRetentionDurationCount')]",
+                "durationType": "Days"
+              }
+            }
+          }
+        }
+      }
+    ],
+    "backupVMs": [
+      {
+        "vmName": "[parameters('adVmName')]",
+        "vmResourceGroup": "[parameters('adVmResourceGroupName')]",
+        "protectionContainers": "[concat('iaasvmcontainer;iaasvmcontainerv2;', parameters('adVmResourceGroupName'), ';', parameters('adVmName'))]",
+        "protectedItems": "[concat('vm;iaasvmcontainerv2;', parameters('adVmResourceGroupName'), ';', parameters('adVmName'))]",
+        "protectedItemType": "Microsoft.ClassicCompute/virtualMachines",
+        "virtualMachineId": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('adVmResourceGroupName'), '/providers/', 'Microsoft.Compute/virtualMachines', '/' , parameters('adVmName'))]"
+      },
+      {
+        "vmName": "[parameters('rdsVmName')]",
+        "vmResourceGroup": "[parameters('rdsVmResourceGroupName')]",
+        "protectionContainers": "[concat('iaasvmcontainer;iaasvmcontainerv2;', parameters('rdsVmResourceGroupName'), ';', parameters('rdsVmName'))]",
+        "protectedItems": "[concat('vm;iaasvmcontainerv2;', parameters('rdsVmResourceGroupName'), ';', parameters('rdsVmName'))]",
+        "protectedItemType": "Microsoft.ClassicCompute/virtualMachines",
+        "virtualMachineId": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('rdsVmResourceGroupName'), '/providers/', 'Microsoft.Compute/virtualMachines', '/' , parameters('rdsVmName'))]"
+      },
+      {
+        "vmName": "[parameters('appVmName')]",
+        "vmResourceGroup": "[parameters('appVmResourceGroupName')]",
+        "protectionContainers": "[concat('iaasvmcontainer;iaasvmcontainerv2;', parameters('appVmResourceGroupName'), ';', parameters('appVmName'))]",
+        "protectedItems": "[concat('vm;iaasvmcontainerv2;', parameters('appVmResourceGroupName'), ';', parameters('appVmName'))]",
+        "protectedItemType": "Microsoft.ClassicCompute/virtualMachines",
+        "virtualMachineId": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('appVmResourceGroupName'), '/providers/', 'Microsoft.Compute/virtualMachines', '/' , parameters('appVmName'))]"
+      }
+    ]
+  },
+  "resources": [
+    {
+      "name": "[parameters('omsRecoveryServicesVaultName')]",
+      "type": "Microsoft.RecoveryServices/vaults",
+      "location": "[parameters('omsRecoveryServicesVaultLocation')]",
+      "apiVersion": "[variables('omsRecoveryServicesApiVersion')]",
+      "dependsOn": [
+      ],
+      "sku": {
+        "name": "RS0",
+        "tier": "Standard"
+      },
+      "properties": {}
+    },
+    {
+      "name": "[concat(parameters('omsRecoveryServicesVaultName'), '/', variables('backupPolicy')[0].name)]",
+      "type": "Microsoft.RecoveryServices/vaults/backupPolicies",
+      "apiVersion": "[variables('omsRecoveryServicesApiVersion')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.RecoveryServices/vaults', parameters('omsRecoveryServicesVaultName'))]"
+      ],
+      "properties": "[variables('backupPolicy')[0].properties]"
+    },
+    {
+      "name": "[parameters('omsAutomationAccountName')]",
+      "type": "Microsoft.Automation/automationAccounts",
+      "apiVersion": "[variables('omsAutomationApiVersion')]",
+      "location": "[parameters('omsAutomationAccountLocation')]",
+      "dependsOn": [
+      ],
+      "tags": {},
+      "properties": {
+        "comment": "",
+        "sku": {
+          "name": "[parameters('omsAutomationSku')]"
+        }
+      }
+    },
+    {
+      "name": "[concat(parameters('omsAutomationAccountName') ,'/', variables('automationCredentials')[0].Name)]",
+      "type": "Microsoft.Automation/automationAccounts/credentials",
+      "apiVersion": "[variables('omsAutomationApiVersion')]",
+      "location": "[parameters('omsAutomationAccountLocation')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Automation/automationAccounts', parameters('omsAutomationAccountName'))]"
+      ],
+      "tags": {},
+      "properties": {
+        "description": "[variables('automationCredentials')[0].Description]",
+        "password": "[parameters('azureServiceAccountPassword')]",
+        "userName": "[parameters('azureServiceAccountUserName')]"
+      }
+    },
+    {
+      "name": "[concat(parameters('omsAutomationAccountName'), '/', variables('automationVariables')[0].Name)]",
+      "type": "microsoft.automation/automationAccounts/variables",
+      "apiVersion": "[variables('omsAutomationApiVersion')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Automation/automationAccounts', parameters('omsAutomationAccountName'))]"
+      ],
+      "tags": {
+      },
+      "properties": {
+        "description": "[variables('automationVariables')[0].Description]",
+        "isEncrypted": "[variables('automationVariables')[0].isEncrypted]",
+        "type": "[variables('automationVariables')[0].Type]",
+        "value": "[concat('\"', subscription().subscriptionId ,'\"')]"
+      }
+    },
+    {
+      "name": "[concat(parameters('omsAutomationAccountName'), '/', variables('automationVariables')[1].Name)]",
+      "type": "microsoft.automation/automationAccounts/variables",
+      "apiVersion": "[variables('omsAutomationApiVersion')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Automation/automationAccounts', parameters('omsAutomationAccountName'))]"
+      ],
+      "tags": {
+      },
+      "properties": {
+        "description": "[variables('automationVariables')[1].Description]",
+        "isEncrypted": "[variables('automationVariables')[1].isEncrypted]",
+        "type": "[variables('automationVariables')[1].Type]",
+        "value": "[concat('\"', subscription().tenantId ,'\"')]"
+      }
+    },
+    {
+      "name": "[concat(parameters('omsAutomationAccountName'), '/', variables('powerShellModulesBatch1')[copyIndex()].Name)]",
+      "type": "microsoft.automation/automationAccounts/modules",
+      "apiVersion": "[variables('omsAutomationApiVersion')]",
+      "tags": {},
+      "dependsOn": [
+        "[resourceId('Microsoft.Automation/automationAccounts', parameters('omsAutomationAccountName'))]"
+      ],
+      "copy": {
+        "name": "powerShellModulesBatch1Copy",
+        "count": "[length(variables('powerShellModulesBatch1'))]"
+      },
+      "properties": {
+        "contentLink": {
+          "uri": "[variables('powerShellModulesBatch1')[copyIndex()].Uri]"
+        }
+      }
+    },
+    {
+      "name": "[concat(parameters('omsAutomationAccountName'), '/', variables('powerShellModulesBatch2')[copyIndex()].Name)]",
+      "type": "microsoft.automation/automationAccounts/modules",
+      "apiVersion": "[variables('omsAutomationApiVersion')]",
+      "tags": {},
+      "dependsOn": [
+        "powerShellModulesBatch1Copy",
+        "[resourceId('Microsoft.Automation/automationAccounts', parameters('omsAutomationAccountName'))]"
+      ],
+      "copy": {
+        "name": "powerShellModulesBatch2Copy",
+        "count": "[length(variables('powerShellModulesBatch2'))]"
+      },
+      "properties": {
+        "contentLink": {
+          "uri": "[variables('powerShellModulesBatch2')[copyIndex()].Uri]"
+        }
+      }
+    },
+    {
+      "name": "[concat(parameters('omsAutomationAccountName'), '/', variables('powerShellModulesBatch3')[copyIndex()].Name)]",
+      "type": "microsoft.automation/automationAccounts/modules",
+      "apiVersion": "[variables('omsAutomationApiVersion')]",
+      "tags": {},
+      "dependsOn": [
+        "powerShellModulesBatch2Copy",
+        "[resourceId('Microsoft.Automation/automationAccounts', parameters('omsAutomationAccountName'))]"
+      ],
+      "copy": {
+        "name": "powerShellModulesBatch3Copy",
+        "count": "[length(variables('powerShellModulesBatch3'))]"
+      },
+      "properties": {
+        "contentLink": {
+          "uri": "[variables('powerShellModulesBatch3')[copyIndex()].Uri]"
+        }
+      }
+    },
+    {
+      "name": "[concat(parameters('omsAutomationAccountName'), '/', variables('powerShellModulesBatch4')[copyIndex()].Name)]",
+      "type": "microsoft.automation/automationAccounts/modules",
+      "apiVersion": "[variables('omsAutomationApiVersion')]",
+      "tags": {},
+      "dependsOn": [
+        "powerShellModulesBatch3Copy",
+        "[resourceId('Microsoft.Automation/automationAccounts', parameters('omsAutomationAccountName'))]"
+      ],
+      "copy": {
+        "name": "powerShellModulesBatch4Copy",
+        "count": "[length(variables('powerShellModulesBatch4'))]"
+      },
+      "properties": {
+        "contentLink": {
+          "uri": "[variables('powerShellModulesBatch4')[copyIndex()].Uri]"
+        }
+      }
+    },
+    {
+      "name": "[concat(parameters('omsAutomationAccountName'), '/', variables('runbooks')[copyIndex()].runbookName)]",
+      "type": "Microsoft.Automation/automationAccounts/runbooks",
+      "apiVersion": "[variables('omsAutomationApiVersion')]",
+      "location": "[parameters('omsAutomationAccountLocation')]",
+      "tags": {
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Automation/automationAccounts', parameters('omsAutomationAccountName'))]"
+      ],
+      "copy": {
+        "name": "RunbooksCopy",
+        "count": "[length(variables('runbooks'))]"
+      },
+      "properties": {
+        "runbookType": "[variables('runbooks')[copyIndex()].runbookType]",
+        "logProgress": "false",
+        "logVerbose": "false",
+        "description": "[variables('runbooks')[copyIndex()].runbookDescription]",
+        "publishContentLink": {
+          "uri": "[variables('runbooks')[copyIndex()].runbookURL]",
+          "version": "[variables('runbooks')[copyIndex()].runbookVersion]"
+        }
+
+      }
+    },
+    {
+      "name": "[concat(parameters('omsAutomationAccountName'), '/', variables('runbookJobs')[0].Id)]",
+      "type": "Microsoft.Automation/automationAccounts/jobs",
+      "apiVersion": "[variables('omsAutomationApiVersion')]",
+      "location": "[parameters('omsAutomationAccountLocation')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Automation/automationAccounts', parameters('omsAutomationAccountName'))]",
+        "[resourceId('Microsoft.RecoveryServices/vaults', parameters('omsRecoveryServicesVaultName'))]",
+        "[resourceId('Microsoft.Automation/automationAccounts/credentials', parameters('omsAutomationAccountName'), variables('automationCredentials')[0].Name)]",
+        "[resourceId('Microsoft.Automation/automationAccounts/variables', parameters('omsAutomationAccountName'), variables('automationVariables')[0].Name)]",
+        "RunbooksCopy",
+        "powerShellModulesBatch1Copy",
+        "powerShellModulesBatch2Copy",
+        "powerShellModulesBatch3Copy",
+        "powerShellModulesBatch4Copy"
+      ],
+      "tags": {},
+      "properties": {
+        "runbook": {
+          "name": "[variables('runbookJobs')[0].runbookName]"
+        },
+        "parameters": "[variables('runbookJobs')[0].Parameters]"
+      }
+    },
+    {
+      "name": "[concat(parameters('omsRecoveryServicesVaultName'), '/', 'Azure', '/', variables('backupVMs')[0].protectionContainers , '/', variables('backupVMs')[0].protectedItems)]",
+      "type": "Microsoft.RecoveryServices/vaults/backupFabrics/protectionContainers/protectedItems",
+      "apiVersion": "[variables('omsRecoveryServicesApiVersion')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.RecoveryServices/vaults', parameters('omsRecoveryServicesVaultName'))]",
+        "[resourceId('Microsoft.RecoveryServices/vaults/backupPolicies', parameters('omsRecoveryServicesVaultName'), variables('backupPolicy')[0].name)]",
+        "[resourceId('Microsoft.Automation/automationAccounts/jobs', parameters('omsAutomationAccountName'), variables('runbookJobs')[0].Id)]"
+       ],
+      "properties": {
+        "protectedItemType": "[variables('backupVMs')[0].protectedItemType]",
+        "policyId": "[resourceId('Microsoft.RecoveryServices/vaults/backupPolicies', parameters('omsRecoveryServicesVaultName'), variables('backupPolicy')[0].name)]",
+        "sourceResourceId": "[variables('backupVMs')[0].virtualMachineId]"
+      }
+    },
+    {
+      "name": "[concat(parameters('omsRecoveryServicesVaultName'), '/', 'Azure', '/', variables('backupVMs')[1].protectionContainers , '/', variables('backupVMs')[1].protectedItems)]",
+      "type": "Microsoft.RecoveryServices/vaults/backupFabrics/protectionContainers/protectedItems",
+      "apiVersion": "[variables('omsRecoveryServicesApiVersion')]",
+      "dependsOn": [ 
+        "[resourceId('Microsoft.RecoveryServices/vaults', parameters('omsRecoveryServicesVaultName'))]",
+        "[resourceId('Microsoft.RecoveryServices/vaults/backupPolicies', parameters('omsRecoveryServicesVaultName'), variables('backupPolicy')[0].name)]",
+        "[resourceId('Microsoft.Automation/automationAccounts/jobs', parameters('omsAutomationAccountName'), variables('runbookJobs')[0].Id)]"
+
+      ],
+      "properties": {
+        "protectedItemType": "[variables('backupVMs')[1].protectedItemType]",
+        "policyId": "[resourceId('Microsoft.RecoveryServices/vaults/backupPolicies', parameters('omsRecoveryServicesVaultName'), variables('backupPolicy')[0].name)]",
+        "sourceResourceId": "[variables('backupVMs')[1].virtualMachineId]"
+      }
+    },
+    {
+      "name": "[concat(parameters('omsRecoveryServicesVaultName'), '/', 'Azure', '/', variables('backupVMs')[2].protectionContainers , '/', variables('backupVMs')[2].protectedItems)]",
+      "type": "Microsoft.RecoveryServices/vaults/backupFabrics/protectionContainers/protectedItems",
+      "apiVersion": "[variables('omsRecoveryServicesApiVersion')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.RecoveryServices/vaults', parameters('omsRecoveryServicesVaultName'))]",
+        "[resourceId('Microsoft.RecoveryServices/vaults/backupPolicies', parameters('omsRecoveryServicesVaultName'), variables('backupPolicy')[0].name)]",
+        "[resourceId('Microsoft.Automation/automationAccounts/jobs', parameters('omsAutomationAccountName'), variables('runbookJobs')[0].Id)]"
+       ],
+      "properties": {
+        "protectedItemType": "[variables('backupVMs')[2].protectedItemType]",
+        "policyId": "[resourceId('Microsoft.RecoveryServices/vaults/backupPolicies', parameters('omsRecoveryServicesVaultName'), variables('backupPolicy')[0].name)]",
+        "sourceResourceId": "[variables('backupVMs')[2].virtualMachineId]"
+      }
+    }
+
+  ],
+  "outputs": {
+  }
+}

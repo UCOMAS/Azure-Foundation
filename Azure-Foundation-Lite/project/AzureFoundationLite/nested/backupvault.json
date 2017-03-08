@@ -1,0 +1,94 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+  "parameters": {
+    "omsRecoveryServicesVaultName": {
+      "type": "string",
+      "defaultValue": "OMSRSVault",
+      "metadata": {
+        "description": "The name of the OMS Recovery Services Vault that will be created."
+      }
+    },
+    "omsRecoveryServicesVaultLocation": {
+      "type": "string",
+      "allowedValues": [
+        "Brazil South",
+        "Central US",
+        "East Asia",
+        "East US",
+        "East US 2",
+        "Japan West",
+        "Japan East",
+        "North Central US",
+        "North Europe",
+        "South Central US",
+        "Southeast Asia",
+        "West Europe",
+        "West US"
+      ],
+      "metadata": {
+        "description": "The region to deploy OMS Recovery Services Vault in."
+      },
+      "defaultValue": "West Europe"
+    },
+    "omsRecoveryServicesApiVersion": {
+      "type": "string",
+      "allowedValues": [
+        "2016-05-01",
+        "2015-12-10",
+        "2015-11-10",
+        "2015-08-15",
+        "2015-08-10",
+        "2015-06-10",
+        "2015-03-15"
+      ],
+      "defaultValue": "2016-06-01",
+      "metadata": {
+        "description": "The API version of Microsoft.RecoveryServices/vaults resource provider."
+      }
+    },
+    "omsRecoveryServicesVaultSku": {
+      "type": "string",
+      "allowedValues": [
+        "Standard"
+      ],
+      "defaultValue": "Standard",
+      "metadata": {
+        "description": "The OMS Recovery Services Vault SKU Name."
+      }
+    }
+  },
+    "variables": {
+    },
+  "resources": [
+    {
+      "name": "[parameters('omsRecoveryServicesVaultName')]",
+      "type": "Microsoft.RecoveryServices/vaults",
+      "location": "[parameters('omsRecoveryServicesVaultLocation')]",
+      "apiVersion": "[parameters('omsRecoveryServicesApiVersion')]",
+      "dependsOn": [
+      ],
+      "sku": {
+        "name": "RS0",
+        "tier": "Standard"
+      },
+      "properties": {}
+    },
+    {
+      "name": "[concat(parameters('omsRecoveryServicesVaultName'), '/vaultstorageconfig')]",
+      "type": "Microsoft.RecoveryServices/vaults/backupstorageconfig",
+      "location": "[parameters('omsRecoveryServicesVaultLocation')]",
+      "apiVersion": "[parameters('omsRecoveryServicesApiVersion')]",
+      "dependsOn": [
+      ],
+      "properties": {
+        "storageModelType": "LocallyRedundant",
+        "storageType": "LocallyRedundant",
+        "dedupState": "Disabled",
+        "xcoolState": "Disabled"
+      }
+    }
+  ],
+    "outputs": {
+    }
+}

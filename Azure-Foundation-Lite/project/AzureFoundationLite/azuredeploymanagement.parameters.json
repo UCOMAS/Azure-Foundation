@@ -1,0 +1,21 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+    "contentVersion": "1.0.0.0",
+  "parameters": {
+    "omsRecoveryServicesVaultName": {
+      "value": "OMSRSVault1234"
+    },
+    "omsAutomationAccountName": {
+      "value": "OMSAutomation1234"
+    },
+    "omsAutomationAccountLocation": {
+      "value": "West Europe"
+    },
+    "azureServiceAccountUserName": {
+      "value": "Serviceaccount@stasoutlook.onmicrosoft.com"
+    },
+    "azureServiceAccountPassword": {
+      "value": ""
+    }
+  }
+}

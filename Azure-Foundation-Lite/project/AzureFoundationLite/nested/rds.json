@@ -1,0 +1,358 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "vmName":{
+      "type": "string",
+      "metadata": {
+        "description":"The VM name for the Remote Desktop Services server."
+      }
+    },
+    "adminUsername": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the administrator account of the new VM and domain"
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "The password for the administrator account of the new VM and domain"
+      }
+    },
+    "domainUsername": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the domain administrator account of the domain"
+      }
+    },
+    "domainPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "The password for the domain administrator account of the domain"
+      }
+    },
+    "virtualNetworkResourceGroup": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the virtual network resource group"
+      }
+    },
+    "domainJoinOptions": {
+      "type": "int",
+      "defaultValue": 3,
+      "metadata": {
+        "description": "Set of bit flags that define the join options. Default value of 3 is a combination of NETSETUP_JOIN_DOMAIN (0x00000001) & NETSETUP_ACCT_CREATE (0x00000002) i.e. will join the domain and create the account on the domain. For more information see https://msdn.microsoft.com/en-us/library/aa392154(v=vs.85).aspx"
+      }
+    },
+    "virtualNetworkName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the virtual network"
+      }
+    },
+    "subnetName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the subnet"
+      }
+    },
+    "domainName": {
+      "type": "string",
+      "metadata": {
+        "description": "The FQDN of the Active Directory Domain to be created"
+      }
+    },
+    "dnsPrefix": {
+      "type": "string",
+      "metadata": {
+        "description": "The DNS prefix for the public IP address used by the Load Balancer"
+      }
+    },
+    "windowsServer": {
+      "type": "string",
+      "metadata": {
+        "description": "The version of Windows Server to use"
+      },
+      "defaultValue": "2016-Datacenter",
+      "allowedValues": [
+        "2012-Datacenter",
+        "2012-R2-Datacenter",
+        "2016-Datacenter"
+      ]
+    },
+    "vmSize": {
+      "type": "string",
+      "defaultValue": "Standard_DS2_v2",
+      "allowedValues": [
+        "Standard_DS1_v2",
+        "Standard_DS2_v2",
+        "Standard_DS3_v2",
+        "Standard_DS4_v2",
+        "Standard_DS5_v2"
+      ],
+      "metadata": {
+        "description": "The size of the virtual machines"
+      }
+    },
+    "_artifactsLocation": {
+      "type": "string",
+      "metadata": {
+        "description": "The location of resources, such as templates and DSC modules, that the template depends on"
+      }
+    },
+    "_artifactsLocationSasToken": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Auto-generated token to access _artifactsLocation"
+      }
+    }
+  },
+  "variables": {
+    "RDSLBFE": "RDSLBFE",
+    "rdsLBBE": "RDSLBBE",
+    "NicName": "[concat(parameters('vmName'),'Nic')]",
+    "rdsRDPNAT": "rdsrdpnat",
+    "publicIPAddressName": "rdsPublicIP",
+    "rdsAvailabilitySetName": "rdsAvailabiltySet",
+    "rdsLBName": "rdsLoadBalancer",
+    "vnetID": "[resourceId(parameters('virtualNetworkResourceGroup'), 'Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
+    "subnetid": "[concat(variables('vnetID'),'/subnets/', parameters('subnetName'))]",
+    "availabilitySetPlatformFaultDomainCount": "2",
+    "availabilitySetPlatformUpdateDomainCount": "5",
+    "storageAccountTypedOsDisk": "Premium_LRS",
+    "storageAccountTypeDataDisk1": "Premium_LRS",
+    "diskSizeGBDataDisk1": 128,
+    "apiVersion": {
+      "network": {
+        "publicIPAddresses": "2016-09-01",
+        "networkInterfaces": "2016-09-01",
+        "loadBalancers": "2016-03-30"
+      },
+      "Compute": {
+        "disk": "2016-04-30-preview",
+        "virtualMachines": "2016-04-30-preview",
+        "virtualMachinesExtensions": "2016-08-30",
+        "availabilitySets": "2016-04-30-preview"
+
+      }
+    }
+  },
+  "resources": [
+    {
+      "name": "[variables('publicIPAddressName')]",
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "[variables('apiVersion').network.publicIPAddresses]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "publicIPAllocationMethod": "Dynamic",
+        "dnsSettings": {
+          "domainNameLabel": "[parameters('dnsPrefix')]"
+        }
+      }
+    },
+    {
+      "name": "[variables('rdsAvailabilitySetName')]",
+      "type": "Microsoft.Compute/availabilitySets",
+      "apiVersion": "[variables('apiVersion').Compute.availabilitySets]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "platformFaultDomainCount": "[variables('availabilitySetPlatformFaultDomainCount')]",
+        "platformUpdateDomainCount": "[variables('availabilitySetPlatformUpdateDomainCount')]",
+        "managed": true
+      },
+      "sku": {
+        "name": "Aligned"
+      }
+    },
+    {
+      "name": "[variables('rdsLBName')]",
+      "type": "Microsoft.Network/loadBalancers",
+      "apiVersion": "[variables('apiVersion').network.loadBalancers]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPAddressName'))]"
+      ],
+      "properties": {
+        "frontendIPConfigurations": [
+          {
+            "name": "[variables('rdsLBFE')]",
+            "properties": {
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIPAddressName'))]"
+              }
+            }
+          }
+        ],
+        "backendAddressPools": [
+          {
+            "name": "[variables('rdsLBBE')]"
+          }
+        ],
+        "inboundNatRules": [
+          {
+            "name": "[variables('rdsRDPNAT')]",
+            "properties": {
+              "frontendIPConfiguration": {
+                "id": "[resourceId('Microsoft.Network/loadBalancers/frontendIPConfigurations', variables('rdsLBName'), variables('rdsLBFE'))]"
+              },
+              "protocol": "tcp",
+              "frontendPort": 3389,
+              "backendPort": 3389,
+              "enableFloatingIP": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "[variables('NicName')]",
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "[variables('apiVersion').network.networkInterfaces]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/loadBalancers', variables('rdsLBName'))]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "dynamic",
+              "subnet": {
+                "id": "[variables('subnetid')]"
+              },
+              "loadBalancerBackendAddressPools": [
+                {
+                  "id": "[resourceId('Microsoft.Network/loadBalancers/backendAddressPools', variables('rdsLBName'), variables('rdsLBBE'))]"
+                }
+              ],
+              "loadBalancerInboundNatRules": [
+                {
+                  "id": "[resourceId('Microsoft.Network/loadBalancers/inboundNatRules', variables('rdsLBName'), variables('rdsRDPNAT'))]"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Compute/disks",
+      "name": "[concat(parameters('vmName'), '-dataDisk1')]",
+      "apiVersion": "[variables('apiVersion').Compute.disk]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "creationData": {
+          "createOption": "Empty"
+        },
+        "accountType": "[variables('storageAccountTypeDataDisk1')]",
+        "diskSizeGB":  "[variables('diskSizeGBDataDisk1')]"
+      }
+    },
+    {
+      "name": "[parameters('vmName')]",
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "[variables('apiVersion').Compute.virtualMachines]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('NicName'))]",
+        "[resourceId('Microsoft.Compute/availabilitySets', variables('rdsAvailabilitySetName'))]",
+        "[resourceId('Microsoft.Network/loadBalancers', variables('rdsLBName'))]",
+        "[resourceId('Microsoft.Compute/disks', concat(parameters('vmName'), '-dataDisk1'))]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('vmSize')]"
+        },
+        "availabilitySet": {
+          "id": "[resourceId('Microsoft.Compute/availabilitySets', variables('rdsAvailabilitySetName'))]"
+        },
+        "osProfile": {
+          "computerName": "[parameters('vmName')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "MicrosoftWindowsServer",
+            "offer": "WindowsServer",
+            "sku": "[parameters('windowsserver')]",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "[concat(parameters('vmName'), '-osDisk')]",
+            "createOption": "fromImage",
+            "managedDisk": {
+              "storageAccountType": "[variables('storageAccountTypedOsDisk')]"
+            }
+          },
+          "dataDisks": [
+            {
+              "lun": 0,
+              "managedDisk": {
+                "id": "[resourceId('Microsoft.Compute/disks', concat(parameters('vmName'), '-dataDisk1'))]"
+              },
+              "caching": "None",
+              "createOption": "Attach"
+            }
+          ]
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('NicName'))]"
+            }
+          ]
+        }
+      },
+      "resources": [
+        {
+
+          "name": "[concat(parameters('vmName'),'/joindomain')]",
+          "type": "Microsoft.Compute/virtualMachines/extensions",
+          "apiVersion": "[variables('apiVersion').Compute.virtualMachinesExtensions]",
+          "location": "[resourceGroup().location]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Compute/virtualMachines/',parameters('vmName'))]"
+          ],
+          "properties": {
+            "publisher": "Microsoft.Compute",
+            "type": "JsonADDomainExtension",
+            "typeHandlerVersion": "1.3",
+            "autoUpgradeMinorVersion": true,
+            "settings": {
+              "Name": "[parameters('domainname')]",
+              "User": "[concat(parameters('domainname'), '\\', parameters('domainUsername'))]",
+              "Restart": "true",
+              "Options": "[parameters('domainJoinOptions')]"
+            },
+            "protectedsettings": {
+              "Password": "[parameters('domainPassword')]"
+            }
+          }
+        },
+        {
+          "name": "rds",
+          "type": "extensions",
+          "apiVersion": "[variables('apiVersion').Compute.virtualMachinesExtensions]",
+          "location": "[resourceGroup().location]",
+          "dependsOn": [
+            "[concat('Microsoft.Compute/virtualMachines/', parameters('vmName'), '/extensions/joindomain')]",
+            "[resourceId('Microsoft.Compute/virtualMachines/',parameters('vmName'))]"
+          ],
+          "properties": {
+            "publisher": "Microsoft.Powershell",
+            "type": "DSC",
+            "typeHandlerVersion": "2.19",
+            "autoUpgradeMinorVersion": true,
+            "settings": {
+              "ModulesUrl": "[concat(parameters('_artifactsLocation'), '/DeployRDS.zip', parameters('_artifactsLocationSasToken'))]",
+              "ConfigurationFunction": "DeployRDS.ps1\\RemoteDesktopSessionHost"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

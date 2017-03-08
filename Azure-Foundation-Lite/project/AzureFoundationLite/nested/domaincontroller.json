@@ -1,0 +1,256 @@
+﻿{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "vmName":{
+      "type": "string",
+      "metadata": {
+        "description" : "The VM name for the Active Directory Domain Controller."
+      }
+    },
+    "adminUsername": {
+      "type": "string",
+      "metadata": {
+        "description": "The name of the administrator account of the new VM and domain"
+      }
+    },
+    "adminPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "The password for the administrator account of the new VM and domain"
+      }
+    },
+    "virtualNetworkResourceGroup": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the virtual network resource group"
+      }
+    },
+    "virtualNetworkName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the virtual network"
+      }
+    },
+    "subnetName": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the subnet"
+      }
+    },
+    "adNicIPAddress": {
+      "type": "string",
+      "defaultValue": "10.0.0.4",
+      "metadata": {
+        "description": "IP address of the domain controller"
+      }
+    },
+    "domainName": {
+      "type": "string",
+      "metadata": {
+        "description": "The FQDN of the Active Directory Domain to be created"
+      }
+    },
+    "windowsServer": {
+      "type": "string",
+      "metadata": {
+        "description": "The version of Windows Server to use"
+      },
+      "defaultValue": "2016-Datacenter",
+      "allowedValues": [
+        "2012-Datacenter",
+        "2012-R2-Datacenter",
+        "2016-Datacenter"
+      ]
+    },
+    "vmSize": {
+      "type": "string",
+      "defaultValue": "Standard_A2_V2",
+      "allowedValues": [
+        "Standard_A2_v2",
+        "Standard_A4_v2",
+        "Standard_D2_v2",
+        "Standard_D3_v2"
+      ],
+      "metadata": {
+        "description": "The size of the virtual machines"
+      }
+    },
+    "_artifactsLocation": {
+      "type": "string",
+      "metadata": {
+        "description": "The location of resources, such as templates and DSC modules, that the template depends on"
+      }
+    },
+    "_artifactsLocationSasToken": {
+      "type": "securestring",
+      "metadata": {
+        "description": "Auto-generated token to access _artifactsLocation"
+      }
+    }
+  },
+  "variables": {
+    "NicName": "[concat(parameters('vmName'),'Nic')]",
+    "adAvailabilitySetName": "adAvailabiltySet",
+    "vnetID": "[resourceId(parameters('virtualNetworkResourceGroup'), 'Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
+    "subnetid": "[concat(variables('vnetID'),'/subnets/', parameters('subnetName'))]",
+    "availabilitySetPlatformFaultDomainCount": "2",
+    "availabilitySetPlatformUpdateDomainCount": "5",
+    "storageAccountTypedOsDisk": "Standard_LRS",
+    "storageAccountTypeDataDisk1": "Standard_LRS",
+    "diskSizeGBDataDisk1": 64,
+    "apiVersion": {
+      "network": {
+        "publicIPAddresses": "2016-09-01",
+        "networkInterfaces": "2016-09-01"
+      },
+      "Compute": {
+        "disk": "2016-04-30-preview",
+        "virtualMachines": "2016-04-30-preview",
+        "virtualMachinesExtensions": "2016-08-30",
+        "availabilitySets": "2016-04-30-preview"
+
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Compute/availabilitySets",
+      "name": "[variables('adAvailabilitySetName')]",
+      "apiVersion": "[variables('apiVersion').Compute.availabilitySets]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "platformFaultDomainCount": "[variables('availabilitySetPlatformFaultDomainCount')]",
+        "platformUpdateDomainCount": "[variables('availabilitySetPlatformUpdateDomainCount')]",
+        "managed": true
+      },
+      "sku": {
+        "name": "Aligned"
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "name": "[variables('NicName')]",
+      "apiVersion": "[variables('apiVersion').network.networkInterfaces]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Static",
+              "privateIPAddress": "[parameters('adNicIPAddress')]",
+              "subnet": {
+                "id": "[variables('subnetid')]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Compute/disks",
+      "name": "[concat(parameters('vmName'), '-dataDisk1')]",
+      "apiVersion": "[variables('apiVersion').Compute.disk]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "creationData": {
+          "createOption": "Empty"
+        },
+        "accountType": "[variables('storageAccountTypeDataDisk1')]",
+        "diskSizeGB": "[variables('diskSizeGBDataDisk1')]"
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "name": "[parameters('vmName')]",
+      "apiVersion": "[variables('apiVersion').Compute.virtualMachines]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('NicName'))]",
+        "[resourceId('Microsoft.Compute/availabilitySets', variables('adAvailabilitySetName'))]",
+        "[resourceId('Microsoft.Compute/disks', concat(parameters('vmName'), '-dataDisk1'))]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('vmSize')]"
+        },
+        "availabilitySet": {
+          "id": "[resourceId('Microsoft.Compute/availabilitySets', variables('adAvailabilitySetName'))]"
+        },
+        "osProfile": {
+          "computerName": "[parameters('vmName')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "MicrosoftWindowsServer",
+            "offer": "WindowsServer",
+            "sku": "[parameters('windowsserver')]",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "[concat(parameters('vmName'), '-osDisk')]",
+            "createOption": "fromImage",
+            "managedDisk": {
+              "storageAccountType": "[variables('storageAccountTypedOsDisk')]"
+            }
+          },
+          "dataDisks": [
+            {
+              "lun": 0,
+              "managedDisk": {
+                "id": "[resourceId('Microsoft.Compute/disks', concat(parameters('vmName'), '-dataDisk1'))]"
+              },
+              "caching": "None",
+              "createOption": "Attach"
+            }
+          ]
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('NicName'))]"
+            }
+          ]
+        }
+      },
+      "resources": [
+        {
+          "type": "extensions",
+          "name": "CreateADForest",
+          "apiVersion": "[variables('apiVersion').Compute.virtualMachinesExtensions]",
+          "location": "[resourceGroup().location]",
+          "dependsOn": [
+            "[resourceId('Microsoft.Compute/virtualMachines', parameters('vmName'))]"
+          ],
+          "properties": {
+            "publisher": "Microsoft.Powershell",
+            "type": "DSC",
+            "typeHandlerVersion": "2.19",
+            "autoUpgradeMinorVersion": true,
+            "settings": {
+              "ModulesUrl": "[concat(parameters('_artifactsLocation'), '/CreateADPDC.zip', parameters('_artifactsLocationSasToken'))]",
+              "ConfigurationFunction": "CreateADPDC.ps1\\CreateADPDC",
+              "Properties": {
+                "DomainName": "[parameters('domainName')]",
+                "AdminCreds": {
+                  "UserName": "[parameters('adminUsername')]",
+                  "Password": "PrivateSettingsRef:AdminPassword"
+                }
+              }
+            },
+            "protectedSettings": {
+              "Items": {
+                "AdminPassword": "[parameters('adminPassword')]"
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

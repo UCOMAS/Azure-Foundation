@@ -1,0 +1,45 @@
+﻿{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "adVmName": {
+      "value": "adVM"
+    },
+    "adVmSize": {
+      "value": "Standard_A2_v2"
+    },
+    "domainName": {
+      "value": "stokke.local"
+    },
+    "domainUsername": {
+      "value": "stokke"
+    },
+    "domainPassword": {
+      "value": "Passw0rd1234#"
+    },
+    "rdsVmName": {
+      "value": "rdsVM"
+    },
+    "rdsVmSize": {
+      "value": "Standard_DS2_v2"
+    },
+    "rdsDnsPrefix": {
+      "value": "rdspublisc325813"
+    },
+    "appVmName": {
+      "value": "appVM"
+    },
+    "appDnsPrefix": {
+      "value": "apppublic232581s"
+    },
+    "appVmSize": {
+      "value": "Standard_A2_v2"
+    },
+    "localAdminUsername": {
+      "value": "localadmin"
+    },
+    "localAdminPassword": {
+      "value": "Passw0rd1234#"
+    }
+  }
+}
