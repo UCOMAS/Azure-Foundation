@@ -1,9 +1,9 @@
 ﻿Param(
-        [string] $ResourceGroupName,
+        [string] $ResourceGroupName ="Ucom",
         [ValidateSet("West Europe","North Europe","East US","East US 2","Central US","North Central US","South Central US","West Central US","West US","West US 2")] 
         [string] 
         $ResourceGroupLocation = "West Europe",
-        [string] $MGMTResourceGroupName
+        [string] $MGMTResourceGroupName ="Ucom"
 
     )
 

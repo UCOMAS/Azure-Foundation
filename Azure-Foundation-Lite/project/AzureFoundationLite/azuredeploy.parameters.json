@@ -9,28 +9,28 @@
       "value": "Standard_A2_v2"
     },
     "domainName": {
-      "value": "stokke.local"
+      "value": "ucom.local"
     },
     "domainUsername": {
-      "value": "stokke"
+      "value": "ucomadmin"
     },
     "domainPassword": {
       "value": "Passw0rd1234#"
     },
     "rdsVmName": {
-      "value": "rdsVM"
+      "value": "UcomRDS"
     },
     "rdsVmSize": {
       "value": "Standard_DS2_v2"
     },
     "rdsDnsPrefix": {
-      "value": "rdspublisc325813"
+      "value": "ucomrds"
     },
     "appVmName": {
-      "value": "appVM"
+      "value": "UcomApp"
     },
     "appDnsPrefix": {
-      "value": "apppublic232581s"
+      "value": "ucomapp"
     },
     "appVmSize": {
       "value": "Standard_A2_v2"
