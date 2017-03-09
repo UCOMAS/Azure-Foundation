@@ -3,7 +3,7 @@
   "contentVersion": "1.0.0.0",
   "parameters": {
     "adVmName": {
-      "value": "adVM"
+      "value": "AZUREDC01"
     },
     "adVmSize": {
       "value": "Standard_A2_v2"
@@ -15,22 +15,22 @@
       "value": "ucomadmin"
     },
     "domainPassword": {
-      "value": "Passw0rd1234#"
+      "value": "Vk55KL1Il3xd"
     },
     "rdsVmName": {
-      "value": "rdsVM"
+      "value": "rdshylland"
     },
     "rdsVmSize": {
-      "value": "Standard_DS3_v2"
+      "value": "Standard_DS2_v2"
     },
     "rdsDnsPrefix": {
-      "value": "ucomrds"
+      "value": "rdshylland"
     },
     "appVmName": {
-      "value": "appVM"
+      "value": "AZURESQL02"
     },
     "appDnsPrefix": {
-      "value": "ucomapp"
+      "value": "sql88public232581s"
     },
     "appVmSize": {
       "value": "Standard_A2_v2"
@@ -39,7 +39,7 @@
       "value": "localadmin"
     },
     "localAdminPassword": {
-      "value": "Passw0rd1234#"
+      "value": "Vk55KL1Il3xd"
     }
   }
 }
