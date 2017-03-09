@@ -29,10 +29,10 @@
     "sqlVmName": {
       "value": "AZURESQL01"
     },
-    "sqlDnsPrefix": {
+    "appDnsPrefix": {
       "value": "ucomapp"
     },
-    "sqlVmSize": {
+    "appVmSize": {
       "value": "Standard_D3_v2"
     },
     "localAdminUsername": {

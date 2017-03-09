@@ -227,10 +227,10 @@ $OptionalParametersMGMT.Add($rdsVmName, $rdsVMValue)
 Set-Variable rdsVmResourceGroupName 'rdsVmResourceGroupName' -Option ReadOnly -Force
 $OptionalParametersMGMT.Add($rdsVmResourceGroupName, $ResourceGroupName)
 
-# Set appVmName parameter
-$appVMValue = $azureDeployParams.parameters.appVmName.value
-Set-Variable appVmName 'sqlVmName' -Option ReadOnly -Force
-$OptionalParametersMGMT.Add($appVmName, $appVMValue)
+# Set sqlVmName parameter
+$appVMValue = $azureDeployParams.parameters.sqlVmName.value
+Set-Variable sqlVmName 'sqlVmName' -Option ReadOnly -Force
+$OptionalParametersMGMT.Add($sqlVmName, $appVMValue)
 
 # Set appVmResourceGroupName parameter
 Set-Variable appVmResourceGroupName 'appVmResourceGroupName' -Option ReadOnly -Force
