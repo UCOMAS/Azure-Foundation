@@ -18,16 +18,16 @@
       "value": "Passw0rd1234#"
     },
     "rdsVmName": {
-      "value": "UcomRDS"
+      "value": "rdsVM"
     },
     "rdsVmSize": {
-      "value": "Standard_DS2_v2"
+      "value": "Standard_DS3_v2"
     },
     "rdsDnsPrefix": {
       "value": "ucomrds"
     },
     "appVmName": {
-      "value": "UcomApp"
+      "value": "appVM"
     },
     "appDnsPrefix": {
       "value": "ucomapp"
