@@ -65,19 +65,19 @@
       },
       "defaultValue": "Standard_DS3"
     },
-    "appVmName": {
+    "sqlVmName": {
       "type": "string",
       "metadata": {
         "description": "The VM name for the Application server."
       }
     },
-    "appDnsPrefix": {
+    "sqlDnsPrefix": {
       "type": "string",
       "metadata": {
         "description": "The DNS prefix for the public IP address used by Application server."
       }
     },
-    "appVmSize": {
+    "sqlVmSize": {
       "type": "string",
       "allowedValues": [
         "Standard_A2_v2",
@@ -156,7 +156,8 @@
     ],
     "_comment13": "The OS for the application server",
     "domainJoinOptions": 3,
-    "_comment15": "Set of bit flags that define the join options. Default value of 3 is a combination of NETSETUP_JOIN_DOMAIN (0x00000001) & NETSETUP_ACCT_CREATE (0x00000002) i.e. will join the domain and create the account on the domain. For more information see https://msdn.microsoft.com/en-us/library/aa392154(v=vs.85).aspx"
+    "_comment15": "Set of bit flags that define the join options. Default value of 3 is a combination of NETSETUP_JOIN_DOMAIN (0x00000001) & NETSETUP_ACCT_CREATE (0x00000002) i.e. will join the domain and create the account on the domain. For more information see https://msdn.microsoft.com/en-us/library/aa392154(v=vs.85).aspx",
+    "sql-serverName": "[concat('sql-server', uniqueString(resourceGroup().id))]"
   },
     "resources": [
       {
@@ -366,7 +367,7 @@
           },
           "parameters": {
             "vmName": {
-              "value": "[parameters('appVmName')]"
+              "value": "[parameters('sqlVmName')]"
             },
             "adminUsername": {
               "value": "[parameters('localAdminUsername')]"
@@ -406,8 +407,85 @@
             }
           }
         }
+      },
+      {
+        "name": "[variables('sql-serverName')]",
+        "type": "Microsoft.Sql/servers",
+        "location": "[resourceGroup().location]",
+        "apiVersion": "2014-04-01-preview",
+        "dependsOn": [
+          "[concat('Microsoft.Resources/deployments/', 'VNet')]",
+          "[concat('Microsoft.Resources/deployments/', 'domaincontroller')]",
+          "[concat('Microsoft.Resources/deployments/', 'UpdateVNet')]"
+        ],
+        "tags": {
+          "displayName": "sql-server",
+
+          "properties": {
+            "mode": "Incremental",
+            "templateLink": {
+              "uri": "[concat(parameters('_artifactsLocation'), '/sql.json', parameters('_artifactsLocationSasToken'))]",
+              "contentVersion": "1.0.0.0"
+            },
+            "parameters": {
+              "vmName": {
+                "value": "[parameters('sqlVmName')]"
+              },
+              "adminUsername": {
+                "value": "[parameters('localAdminUsername')]"
+              },
+              "adminPassword": {
+                "value": "[parameters('localAdminPassword')]"
+              },
+              "domainUsername": {
+                "value": "[parameters('domainUsername')]"
+              },
+              "domainPassword": {
+                "value": "[parameters('domainPassword')]"
+              },
+              "virtualNetworkResourceGroup": {
+                "value": "[variables('virtualNetworkResourceGroup')]"
+              },
+              "domainJoinOptions": {
+                "value": "[variables('domainJoinOptions')]"
+              },
+              "virtualNetworkName": {
+                "value": "[variables('virtualNetworkName')]"
+              },
+              "subnetName": {
+                "value": "[variables('subnetName')]"
+              },
+              "domainName": {
+                "value": "[parameters('domainName')]"
+              },
+              "appDnsPrefix": {
+                "value": "[parameters('sqlDnsPrefix')]"
+              },
+              "windowsServer": {
+                "value": "[variables('appWindowsServer')[2]]"
+              },
+              "vmSize": {
+                "value": "[parameters('sqlVmSize')]"
+              }
+            }
+          },
+          "resources": [
+            {
+              "name": "AllowAllWindowsAzureIps",
+              "type": "firewallrules",
+              "location": "[resourceGroup().location]",
+              "apiVersion": "2014-04-01-preview",
+              "dependsOn": [
+                "[resourceId('Microsoft.Sql/servers', variables('sql-serverName'))]"
+              ],
+              "properties": {
+                "startIpAddress": "0.0.0.0",
+                "endIpAddress": "0.0.0.0"
+              }
+            }
+          ]
+        },
+
+        "outputs": {
+        }
       }
-    ],
-    "outputs": {
-    }
-  }
